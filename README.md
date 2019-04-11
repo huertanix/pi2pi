@@ -64,7 +64,7 @@ Install dnsmasq:
 
 After dnsmasq is installed, turn off Wi-Fi from the Raspbian desktop if it was turned on and disconnect the ethernet cable from rpa if that was being used for an internet connection.
 
-Configure the `/etc/dhcpcd.conf` using `nano`, the text editor that is already installed and ready to use in Raspbian:
+Configure the `/etc/dhcpcd.conf` using nano, the text editor that is already installed and ready to use in Raspbian:
 
     nano /etc/dhcpcd.conf
 
