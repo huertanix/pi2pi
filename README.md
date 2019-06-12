@@ -4,13 +4,10 @@ A self-contained network between two Raspberry Pis
 Overview
 ========
 
-This installation is made up of two Raspberry Pis, one, named rpa, acting as a DHCP server using `dnsmasq`, the other, rpb, as a client. Both devices have a bash script in the default `pi` user directory called imagesync.sh. This script is ran automatically every minute by a cron job listed in the cron tab for the same `pi` user. The script copies images in a `/sending` directory in the USB drive attached to it, and uses rsync to copy everything in that directory into a directory and USB drive with the same name attached on the other device. The script checks the local hostname, either `rpa` or `rpb` then choosing which IP address to send it to—rpa uses 10.0.0.1 and rpb uses 10.0.0.49. Each device is set up to connect via SSH using public key authentication, so no manual intervention is needed to enter a password when rsync is copying files over ethernet.
+This installation is made up of two Raspberry Pis, one, named rpa.local, acting as a DHCP server using `dnsmasq`, the other, rpb.local, as a client. Both devices have a bash script in the default `pi` user directory called imagesync.sh. This script is ran automatically every minute by a cron job listed in the cron tab for the same `pi` user. The script copies images in a `/sending` directory in the USB drive attached to it, and uses rsync to copy everything in that directory into a directory and USB drive with the same name attached on the other device. The script checks the local hostname, either `rpa.local` or `rpb.local` and chooses the destination to send it to that isn't itself; e.g. the script will check if it's running on rpa.local and set the destination to rpb.local. Behind the scenes, rpa.local maps to 10.0.0.1 and rpb.local uses 10.0.0.49. Each device is set up to connect via SSH using public key authentication, so no manual intervention is needed to enter a password when rsync is copying files over ethernet.
 
-Setup
-=====
-
-Prepare USB Drives
------------------------
+Preparing USB Drives
+====================
 
 Two USB drives should be configured as plain FAT32 drives. The partitioning scheme should not matter so much, but the drives used in testing used a Master Boot Record partitioning scheme. Within each drive, there should be two directories:
 
@@ -23,22 +20,46 @@ The drive name should be identical for both USB drives and not include any space
 
 There’s no limitations on the type of files that can be copied over; It can be images, text files, video, etc. There are no constraints on filenames as long as they confirm to the limits of FAT32 file names.
 
-Install Raspbian
-------------------
+Addressing a Corrupted or Extinguished Drive
+--------------------------------------------
+
+USB Drives have a limited shelf life, depending on their quality of hardware, storage available, frequency of use, or sometimes even by the host computer (in this case, a Raspberry Pi) being powered down the otherwise perfectly reasonable way: Unplugging it. If a USB drive becomes corrupted, either replace it and prepare a new one or try to patch it with the `fsck` command. From a Pi connected to a TV/keyboard/mouse and the effected USB drive connected, run:
+
+$`umount /dev/sda1`
+
+and then run:
+
+$`sudo fsck -Cy /dev/sda1`
+
+Finally, restart or shut down the Pi from the shutdown menu.
+
+Cloning From an Existing MicroSD Card
+=====================================
+This installation is made up of two Raspberry Pis with two different configurations. The "brain" of a Raspberry Pi lives in its MicroSD card. To clone one of them, you'll need to acquire another Pi with a new MicroSD card. An existing rpa MicroSD card will be needed to clone another rpa, and an existing rpb MicroSD card will be needed to clone another rpb. The current setup is designed to fit within a 4GB MicroSD card.
+
+Instructions for cloning this or any Raspberry Pi MicroSD card to a new MicroSD card are here: https://appcodelabs.com/how-to-backup-clone-a-raspberry-pi-sd-card-on-macos-the-easy-way.
+
+Starting from Scratch
+=====================
+
+If no existing Pi2Pi installation is available and there's a need to build a new installation from scratch, follow these instructions:
+
+Installing Raspbian
+-------------------
 
 Each Pi will need Raspbian Linux installed on an SD card. Raspbian 2018-11-13 (Full) is the version of Raspbian used since, although a full desktop isn’t necessary for this installation, this version is set up to automatically mount any compatible USB drives. The Raspbian .img file will need to be installed on two microSD cards: one for rpa, and one for rpb. Balena Etcher (https://www.balena.io/etcher/) can be used to write the .img image to each microSD card. This version of Raspbian will need a microSD card that is at least 4GB in size, and newer versions may need cards that hold more than that.
 
 One first boot, each Pi will prompt you to have a locale set (Country: US, Language: American English, Timezone: New York, Use US keyboard). Next, it will ask for a password to be created. Although this Pi will not connect to the internet in a live production environment, it will need to connect to the internet at the beginning of the setup to install some software updates, so a good passphrase is recommended here. Finally, you’ll be prompted to connect to a network (this can be a Wi-FI network or an internet-enabled ethernet connection) which you’ll want to do for the aforementioned software updates, and then you’ll be asked update software, which you should do. After updates are complete, follow the prompt to reboot the Pi.
 
-Configure Hostname
-------------------------
+Configuring Hostname
+--------------------
 
-From the Raspberry Pi config menu, you’ll want to change the hostname to “rpa” for the rpa Pi, and “rpb” for the rpb Pi.
+From the Raspberry Pi config menu, you’ll want to change the hostname to “rpa.local” for the rpa Pi, and “rpb.local” for the rpb Pi.
 
 Alternatively, if you’re configuring this Pi through a serial console instead of having it connected to a display, mouse and keyboard, you can also change the hostname from the command line with these instructions: https://geek-university.com/raspberry-pi/change-raspberry-pis-hostname/.
 
-Configure DNSmasq
------------------------
+Configuring DNSmasq
+-------------------
 
 To simplify things for rpb, there’s no special configuration needed on the client end, since Raspbian is already configured to look for an IP address from a DHCP server by default. To keep the IP address of rpb consistent across DHCP leases however, we’ll want to know its ethernet Media Access Control (MAC) address before configuring rpa.
 
@@ -131,8 +152,8 @@ Shut down rpa, then connect the ethernet cable to rpb.
 
 Turn on rpa, then turn on rpb.
 
-Configure SSH
------------------
+Configuring SSH
+---------------
 
 From the Raspberry Pi config menu under the Interfaces tab, you’ll want to switch SSH to Enable. You’ll need to do this on both rpa and rpb. You may need to reboot afterwards for this to take effect.
 
@@ -144,7 +165,7 @@ From rpa:
 
 Hit enter when asked for the file location and enter for no passphrase. Once the key pair is saved, copy the public key to rpb:
 
-    scp /home/pi/.ssh/id_rsa.pub pi@10.0.0.49:/home/pi/id_rsa_rpa.pub
+    scp /home/pi/.ssh/id_rsa.pub pi@rpb.local:/home/pi/id_rsa_rpa.pub
 
 You might be warned about this being a new connection. Type yes and enter to recognize the new connection.
 
@@ -156,7 +177,7 @@ From rpb:
 
 Hit enter when asked for the file location and enter for no passphrase. Once the key pair is saved, copy the public key to rpa:
 
-    scp /home/pi/.ssh/id_rsa.pub pi@10.0.0.1:/home/pi/id_rsa_rpb.pub
+    scp /home/pi/.ssh/id_rsa.pub pi@rpa.local:/home/pi/id_rsa_rpb.pub
 
 You might be warned about this being a new connection. Type yes and enter to recognize the new connection.
 
@@ -171,7 +192,7 @@ Adjust the permissions on the file and the SSH directory in general:
 
 Finally, ensure you can connect to rpa:
 
-    ssh pi@10.0.0.1
+    ssh pi@rpa.local
 
 If you are able to connect to rpa without having to enter a password this time, great! Before leaving this SSH session, let’s add rpb’s public key to rpa’s list of authorized keys:
 
@@ -192,8 +213,8 @@ That should be all that’s needed on rpb. If you want to test the script before
 
 If it works, you should see the output from `rsync` detailing each file being copied over.
 
-Install script
---------------
+Installing the Script
+---------------------
 
 The included imagesync.sh script should be copied from the USB drive to the Pi user’s home directory on both rpa and rpb. It needs to have “execute” permissions for the Pi user in order for the script to be executed.
 
