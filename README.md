@@ -241,4 +241,4 @@ Finally, press Control+x to exit nano. Cron should automatically begin running t
 License
 =======
 
-Unless otherwise noted, this software is distributed under the GPL v3 License. See LICENSE.txt for further details.
+Unless otherwise noted, this software is distributed under the GPL v3 License. See LICENSE for further details.
